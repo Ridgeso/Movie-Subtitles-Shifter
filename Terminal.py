@@ -12,7 +12,7 @@ if __name__ == '__main__':
     shift_by = float(input("Shift by what amount: "))
 
     # try:
-    Timer.shift_time_1(file_name, new_file, shift_by)
+    Timer.shift_time_2(file_name, new_file, shift_by)
         # if ord(dezycja) == 49:
         #     Timer.zmiana_czasu_1(nazwa, zmiana, cofka*1000)
         # else:

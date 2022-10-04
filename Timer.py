@@ -1,10 +1,10 @@
-from typing import TextIO
+from typing import Any, Callable, TextIO
 import math
 from time import perf_counter
 
 
-def timer_decorator(funk):
-    def wrapper(*args, **kwargs):
+def timer_decorator(funk: Callable) -> Callable:
+    def wrapper(*args, **kwargs) -> Any:
         start = perf_counter()
         funk(*args, **kwargs)
         end = perf_counter()
@@ -23,22 +23,28 @@ class Timer:
         def __str__(self) -> str:
             return f"{self.hours:0>2}:{self.minutes:0>2}:{self.seconds:0>2},{self.millisecond:0>3}"
 
-    def __init__(self, file: str, mode: str) -> None:
-        self._file = open(file, mode=mode, encoding='utf-8')
-        self._mode = mode
+    def __init__(self, source: str, file: str, binaryMode: bool = False) -> None:
+        if binaryMode:
+            self._source = open(source, mode="rb")
+            self._file = open(file, mode="wb")
+        else:
+            self._source = open(source, mode="r", encoding='utf-8')
+            self._file = open(file, mode="w", encoding='utf-8')
+
+    @property
+    def source(self) -> TextIO:
+        return self._source
 
     @property
     def file(self) -> TextIO:
         return self._file
 
-    @property
-    def mode(self) -> str:
-        return self._mode
-
     def __enter__(self) -> TextIO:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self.source:
+            self.source.close()
         if self.file:
             self.file.close()
     
@@ -69,21 +75,16 @@ class Timer:
 
 
 @timer_decorator
-def shift_time_1(file: str, new_file: str, shift_by: int):
+def shift_time_1(file: str, new_file: str, shift_by: int) -> None:
     shift_by *= 1000
     
-    with Timer(file, 'r') as f:
-        text = f.file.readlines()
-
-    with Timer(new_file, 'w') as shifter:
+    with Timer(file, new_file) as shifter:
         text_number = 1
         line_number = 0
 
-        shifter.file.write('1\n')
-        for line in text:
+        while line := shifter.source.readline():
             if str(text_number) == line.strip() or text_number == 1:
-                text_number += 1                
-                hour = text[line_number + 1]
+                hour = shifter.source.readline()
 
                 shifted_time = "{} --> {}\n"
 
@@ -96,31 +97,37 @@ def shift_time_1(file: str, new_file: str, shift_by: int):
                 shifted_2nd_part = shifter.print_time(shifted_parsed_2nd_parth)
 
                 shifted_time = shifted_time.format(shifted_1st_part, shifted_2nd_part)
+                shifter.file.write(f"{text_number}\n")
                 shifter.file.write(shifted_time)
+
+                text_number += 1
+
             else:
-                try:
-                    shifter.file.write(text[line_number + 1])
-                except Exception:
-                    continue
+                shifter.file.write(line)
+
             line_number += 1
 
 
 @timer_decorator
-def zmiana_czasu_2(nazwa, zmiana, cofka):
-    with Timer(nazwa, 'r') as f:
-        dialogi = f.readlines()
+def shift_time_2(file: str, new_file: str, shift: int) -> None:
+    # f = open(file, "rb")
+    # print(f.readline()[2:13])
+    # print(b'{' == b'{')
+    # f.close()
+    brace = ord('}')
 
-    with Timer(zmiana, 'w') as new:
-        for line in dialogi:
-            line = line.strip()
+    with Timer(file, new_file, binaryMode=True) as new:
+        while line := new.source.readline().strip():
+
             k = 1
-            while line[k] != '}':
+            while line[k] != brace:
                 k += 1
-            czas = int(line[1:k])-cofka
-            new.write('{'+str(czas)+'}')
+            time_1st_part = int(line[1:k]) - shift
 
-            k_2 = k+2
-            while line[k+1] != '}':
+            k += 2
+            k_2 = k
+            while line[k] != brace:
                 k += 1
-            czas = int(line[k_2:k+1])-cofka
-            new.write('{'+str(czas)+'}'+line[k+2::]+'\n')
+            time_2nd_part = int(line[k_2:k]) - shift
+            
+            new.file.write(b'{%d}{%d}%s\n' % (time_1st_part, time_2nd_part, line[k+1:]))
