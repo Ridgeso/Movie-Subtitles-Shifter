@@ -14,14 +14,21 @@ def timer_decorator(funk: Callable) -> Callable:
 
 class Timer:
     class _Time:
-        def __init__(self, hours: int, minutes: int, seconds: int, millisecond: int) -> None:
+        def __init__(self, hours: int, minutes: int, seconds: int, milliseconds: int) -> None:
             self.hours = hours
             self.minutes = minutes
             self.seconds = seconds
-            self.millisecond = millisecond
+            self.milliseconds = milliseconds
         
         def __str__(self) -> str:
-            return f"{self.hours:0>2}:{self.minutes:0>2}:{self.seconds:0>2},{self.millisecond:0>3}"
+            return f"{self.hours:0>2}:{self.minutes:0>2}:{self.seconds:0>2},{self.milliseconds:0>3}"
+        
+        @property
+        def collapsed_time(self):
+            return self.hours * 3_600_000 \
+                 + self.minutes * 60_000 \
+                 + self.seconds * 1_000 \
+                 + self.milliseconds
 
     def __init__(self, source: str, file: str, binaryMode: bool = False) -> None:
         if binaryMode:
@@ -49,24 +56,19 @@ class Timer:
             self.file.close()
     
     def pars_time(self, old_time: str) -> _Time:
-        hours = int(old_time[0:2])
-        minutes = int(old_time[3:5])
-        seconds = int(old_time[6:8])
-        millisecond = int(old_time[9:12])
-        
-        return self._Time(hours, minutes, seconds, millisecond)
+        old_time = old_time.replace(',', ':')
+        return self._Time(*map(int, old_time.split(':')))
 
     def shift(self, time: _Time, shift_by: int) -> _Time:
-        shift_time = time.hours * 3_600_000 \
-                     + time.minutes * 60_000 \
-                     + time.seconds * 1_000 \
-                     + time.millisecond \
-                     - shift_by
+        shift_time = time.collapsed_time - shift_by
+
         h = math.floor(shift_time / 3_600_000)
         m = math.floor(shift_time % 3_600_000 / 60_000)
         s = math.floor(shift_time % 60_000 / 1_000)
         ms = math.floor(shift_time % 1_000)
+        
         new_time = self._Time(h, m, s, ms)
+        
         return new_time
 
     @staticmethod
@@ -88,13 +90,17 @@ def shift_time_1(file: str, new_file: str, shift_by: int) -> None:
 
                 shifted_time = "{} --> {}\n"
 
-                parsed_1st_part = shifter.pars_time(hour[ 0 : hour.find(" --> ") ])
-                shifted_parsed_1st_parth = shifter.shift(parsed_1st_part, shift_by)
-                shifted_1st_part = shifter.print_time(shifted_parsed_1st_parth)
+                time_parts = hour.split(" --> ")
 
-                parsed_2nd_part = shifter.pars_time(hour[ hour.find(" --> ") + len(" --> ") : -1])
-                shifted_parsed_2nd_parth = shifter.shift(parsed_2nd_part, shift_by)
-                shifted_2nd_part = shifter.print_time(shifted_parsed_2nd_parth)
+                # parsed_1st_part = shifter.pars_time(hour[ 0 : hour.find(" --> ") ])
+                parsed_1st_part = shifter.pars_time(time_parts[0])
+                shifted_parsed_1st_part = shifter.shift(parsed_1st_part, shift_by)
+                shifted_1st_part = shifter.print_time(shifted_parsed_1st_part)
+
+                # parsed_2nd_part = shifter.pars_time(hour[ hour.find(" --> ") + len(" --> ") : -1])
+                parsed_2nd_part = shifter.pars_time(time_parts[1])
+                shifted_parsed_2nd_part = shifter.shift(parsed_2nd_part, shift_by)
+                shifted_2nd_part = shifter.print_time(shifted_parsed_2nd_part)
 
                 shifted_time = shifted_time.format(shifted_1st_part, shifted_2nd_part)
                 shifter.file.write(f"{text_number}\n")
@@ -110,10 +116,6 @@ def shift_time_1(file: str, new_file: str, shift_by: int) -> None:
 
 @timer_decorator
 def shift_time_2(file: str, new_file: str, shift: int) -> None:
-    # f = open(file, "rb")
-    # print(f.readline()[2:13])
-    # print(b'{' == b'{')
-    # f.close()
     brace = ord('}')
 
     with Timer(file, new_file, binaryMode=True) as new:
