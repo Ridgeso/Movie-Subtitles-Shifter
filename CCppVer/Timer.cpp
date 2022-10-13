@@ -17,45 +17,41 @@ public:
         m_shiftedSubtitles.close();
     }
 
-    void shiftSubtitles(uint32_t shiftBy)
+    void shiftSubtitles(int32_t shiftBy)
     {
         shiftBy *= 1000;
 
         uint32_t textNumber = 1;
-        uint32_t lineNumber = 0;
 
         std::string line, hour;
         std::string timeSplit;
         
         while(std::getline(m_source, line))
         {
-            if((!line.empty() && std::all_of(line.begin(), line.end(), ::isdigit)) || textNumber == 1) 
-            {
-                std::getline(m_source, hour);
-                
-                timeSplit = hour.substr(0, hour.find(" --> "));
-                Timer::TimeParser parsed1stPart = parsTime(timeSplit);
-                Timer::TimeParser shiftedParsed1stPart = shiftTime(parsed1stPart, shiftBy);
-
-                timeSplit = hour.substr(hour.find(" --> ") + 5,
-                                        hour.length() - hour.find(" --> ") - 5);
-                Timer::TimeParser parsed2ndPart = parsTime(timeSplit);
-                Timer::TimeParser shiftedParsed2ndPart = shiftTime(parsed2ndPart, shiftBy);
-
-                m_shiftedSubtitles << textNumber << std::endl;
-                
-                m_shiftedSubtitles << shiftedParsed1stPart.printTime()
-                                   << " --> "
-                                   << shiftedParsed2ndPart.printTime()
-                                   << std::endl;
-
-                textNumber += 1;
-            }
-            else
+            if(!(!line.empty() && std::all_of(line.begin(), line.end(), ::isdigit)) && textNumber != 1) 
             {
                 m_shiftedSubtitles << line << std::endl;
+                continue;
             }
-            lineNumber ++;
+            std::getline(m_source, hour);
+            
+            timeSplit = hour.substr(0, hour.find(" --> "));
+            Timer::TimeParser parsed1stPart = parsTime(timeSplit);
+            Timer::TimeParser shiftedParsed1stPart = shiftTime(parsed1stPart, shiftBy);
+
+            timeSplit = hour.substr(hour.find(" --> ") + 5,
+                                    hour.length() - hour.find(" --> ") - 5);
+            Timer::TimeParser parsed2ndPart = parsTime(timeSplit);
+            Timer::TimeParser shiftedParsed2ndPart = shiftTime(parsed2ndPart, shiftBy);
+
+            m_shiftedSubtitles << textNumber << std::endl;
+            
+            m_shiftedSubtitles << shiftedParsed1stPart.printTime()
+                                << " --> "
+                                << shiftedParsed2ndPart.printTime()
+                                << std::endl;
+
+            textNumber += 1;
         }
     }
 
@@ -82,17 +78,12 @@ private:
         {
             char formatedTime[m_timeFormat.length()+1];
             std::snprintf(formatedTime, m_timeFormat.length(), m_timeFormat.c_str(),
-                m_minutes, m_seconds, m_milliseconds);
+                m_hours, m_minutes, m_seconds, m_milliseconds);
             
-            std::string formatedWihtoutHours(formatedTime);
-
-            std::snprintf(formatedTime, m_timeFormat.length(), "%02d",
-                m_hours);
-            
-            return formatedTime + formatedWihtoutHours;
+            return formatedTime;
         }
     private:
-        const std::string m_timeFormat = ":%02d:%02d,%03d";
+        const std::string m_timeFormat = "%02d:%02d:%02d,%03d";
         int32_t m_hours, m_minutes, m_seconds, m_milliseconds;
     };
 
@@ -102,21 +93,22 @@ private:
 private:
     Timer::TimeParser parsTime(std::string& oldTime)
     {
-        int32_t hours = std::atoi(oldTime.substr(0, 2).c_str());
-        int32_t minutes = std::atoi(oldTime.substr(3, 2).c_str());
-        int32_t seconds = std::atoi(oldTime.substr(6, 2).c_str());
-        int32_t millisecond = std::atoi(oldTime.substr(9, 3).c_str());
+        size_t firstColonAppearance = oldTime.find(':');
+        int32_t hours = std::atoi(oldTime.substr(0, firstColonAppearance).c_str());
+        int32_t minutes = std::atoi(oldTime.substr(firstColonAppearance + 1, 2).c_str());
+        int32_t seconds = std::atoi(oldTime.substr(firstColonAppearance + 4, 2).c_str());
+        int32_t millisecond = std::atoi(oldTime.substr(firstColonAppearance + 7, 3).c_str());
         return Timer::TimeParser(hours, minutes, seconds, millisecond);
     }
 
     Timer::TimeParser shiftTime(Timer::TimeParser time, int32_t shiftBy)
     {
-        uint32_t shiftedTime = time.getCollapsedTime() - shiftBy;
+        int32_t shiftedTime = time.getCollapsedTime() - shiftBy;
         if (shiftedTime < 0)
             return Timer::TimeParser(0, 0, 0, 0);
         return Timer::TimeParser(
-            shiftedTime / 3600000,
-            shiftedTime & 3600000 / 60000,
+            shiftedTime / 3600000 % 10000,
+            shiftedTime % 3600000 / 60000,
             shiftedTime % 60000 / 1000,
             shiftedTime % 1000
         );
