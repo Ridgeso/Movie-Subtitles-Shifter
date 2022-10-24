@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     if text_file_type == '1':
         Timer.shift_time_1(file_name, new_file, shift_by)
-    elif text_file_type == 2:
+    elif text_file_type == '2':
         Timer.shift_time_2(file_name, new_file, shift_by)
     else:
         print("I am not supporting other types of coding subtitles files!")

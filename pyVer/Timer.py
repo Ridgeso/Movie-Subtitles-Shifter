@@ -121,15 +121,12 @@ def shift_time_2(file: str, new_file: str, shift: int) -> None:
     with Timer(file, new_file, binaryMode=True) as new:
         while line := new.source.readline().strip():
 
-            k = 1
-            while line[k] != brace:
-                k += 1
-            time_1st_part = int(line[1:k]) - shift
+            bracePosition = line.find(brace, 1)
+            time_1st_part = int(line[1 : bracePosition]) - shift
 
-            k += 2
-            k_2 = k
-            while line[k] != brace:
-                k += 1
-            time_2nd_part = int(line[k_2:k]) - shift
+            lastBracePosition = bracePosition + 2
+            bracePosition = line.find(brace, lastBracePosition)
+
+            time_2nd_part = int(line[lastBracePosition : bracePosition]) - shift
             
-            new.file.write(b'{%d}{%d}%s\n' % (time_1st_part, time_2nd_part, line[k+1:]))
+            new.file.write(b'{%d}{%d}%s\n' % (time_1st_part, time_2nd_part, line[bracePosition + 1:]))

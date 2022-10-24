@@ -2,6 +2,7 @@
 #include <fstream>
 #include <cstdint>
 #include <string>
+#include <sstream>
 #include <algorithm>
 
 
@@ -17,7 +18,7 @@ public:
         m_shiftedSubtitles.close();
     }
 
-    void shiftSubtitles(int32_t shiftBy)
+    void shiftSubtitlesCountedSubtitles(int32_t shiftBy)
     {
         shiftBy *= 1000;
 
@@ -52,6 +53,37 @@ public:
                                 << std::endl;
 
             textNumber += 1;
+        }
+    }
+
+    void shiftSubtitlesInlineSubtitles(int32_t shiftBy)
+    {
+        const char brace = '}';
+        std::size_t startBracePosition, endBracePosition;
+        std::string line;
+
+        while (std::getline(m_source, line))
+        {
+            std::stringstream parsedTime;
+            startBracePosition = 1;
+            endBracePosition = line.find(brace) - 1;
+
+            parsedTime << line.substr(startBracePosition, endBracePosition);
+
+            startBracePosition = endBracePosition + 3;
+            endBracePosition = line.find(brace, startBracePosition) - startBracePosition;
+            parsedTime << ' ';
+            
+            parsedTime << line.substr(startBracePosition, endBracePosition);
+
+            int32_t appearanceTime, disappearanceTime;
+            parsedTime >> appearanceTime >> disappearanceTime;
+
+            appearanceTime -= shiftBy;
+            disappearanceTime -= shiftBy;
+
+            m_shiftedSubtitles << '{' << appearanceTime << '}' << '{' << disappearanceTime << '}';
+            m_shiftedSubtitles << line.substr(startBracePosition + endBracePosition + 1) << std::endl;
         }
     }
 
@@ -118,29 +150,34 @@ private:
 
 int main()
 {
-    // char choice;
-    // std::string file, newFile;
-    // int32_t shiftBy;
+    char choice;
+    std::string file, newFile;
+    int32_t shiftBy;
     
-    // std::cout << "Type of the file: " << std::endl;
-    // std::cout << "With text line number - 1" << std::endl;
-    // std::cout << "Without               - 2" << std::endl;
+    std::cout << "Type of the file: " << std::endl;
+    std::cout << "With text line number - 1" << std::endl;
+    std::cout << "Without               - 2" << std::endl;
 
-    // std::cout << "Choice: ";
-    // std::cin >> choice;
+    std::cout << "Choice: ";
+    std::cin >> choice;
 
-    // std::cout << "File name: ";
-    // std::cin >> file;
+    std::cout << "File name: ";
+    std::cin >> file;
 
-    // std::cout << "To what file write the output: ";
-    // std::cin >> newFile;
+    std::cout << "To what file write the output: ";
+    std::cin >> newFile;
 
-    // std::cout << "Shift by what amount: ";
-    // std::cin >> shiftBy;
+    std::cout << "Shift by what amount: ";
+    std::cin >> shiftBy;
 
-    Timer test("ST1.srt", "ST1S.srt");
+    Timer test(file, newFile);
 
-    test.shiftSubtitles(12);
+    switch (choice)
+    {
+        case '1': test.shiftSubtitlesCountedSubtitles(shiftBy); break;
+        case '2': test.shiftSubtitlesInlineSubtitles(shiftBy); break;
+        default: std::cout << "Chossen wrong encoding!!!" << std::endl; return 1;
+    }
 
     return 0;
 }
